@@ -2,6 +2,9 @@
 
 A PyTorch implementation of EfficientDet.
 
+##Update
+* Update train and test flow for Wheat detection (refer from kaggle public notebook)
+
 It is based on the
 * official Tensorflow implementation by [Mingxing Tan and the Google Brain team](https://github.com/google/automl)
 * paper by Mingxing Tan, Ruoming Pang, Quoc V. Le [EfficientDet: Scalable and Efficient Object Detection](https://arxiv.org/abs/1911.09070) 

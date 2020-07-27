@@ -47,7 +47,6 @@ def _post_process(config, cls_outputs, box_outputs):
 
     return cls_outputs_all_after_topk, box_outputs_all_after_topk, indices_all, classes_all
 
-
 @torch.jit.script
 def _batch_detection(batch_size: int, class_out, box_out, anchor_boxes, indices, classes, img_scale, img_size):
     batch_detections = []
@@ -57,7 +56,6 @@ def _batch_detection(batch_size: int, class_out, box_out, anchor_boxes, indices,
             class_out[i], box_out[i], anchor_boxes, indices[i], classes[i], img_scale[i], img_size[i])
         batch_detections.append(detections)
     return torch.stack(batch_detections, dim=0)
-
 
 class DetBenchPredict(nn.Module):
     def __init__(self, model, config):
@@ -75,7 +73,6 @@ class DetBenchPredict(nn.Module):
         return _batch_detection(
             x.shape[0], class_out, box_out, self.anchors.boxes, indices, classes, img_scales, img_size)
 
-
 class DetBenchTrain(nn.Module):
     def __init__(self, model, config):
         super(DetBenchTrain, self).__init__()
@@ -88,10 +85,12 @@ class DetBenchTrain(nn.Module):
         self.anchor_labeler = AnchorLabeler(self.anchors, config.num_classes, match_threshold=0.5)
         self.loss_fn = DetectionLoss(self.config)
 
-    def forward(self, x, target):
+    # def forward(self, x, target):
+    def forward(self, x, bboxes, labels):
         class_out, box_out = self.model(x)
         cls_targets, box_targets, num_positives = self.anchor_labeler.batch_label_anchors(
-            x.shape[0], target['bbox'], target['cls'])
+            x.shape[0], bboxes, labels)
+            # x.shape[0], target['bbox'], target['cls'])
         loss, class_loss, box_loss = self.loss_fn(class_out, box_out, cls_targets, box_targets, num_positives)
         output = dict(loss=loss, class_loss=class_loss, box_loss=box_loss)
         if not self.training:
@@ -102,6 +101,18 @@ class DetBenchTrain(nn.Module):
                 target['img_scale'], target['img_size'])
         return output
 
+class ExtendDetBenchTrain(DetBenchTrain):
+
+    def __init__(self, model, config):
+        super(ExtendDetBenchTrain, self).__init__(model, config)
+
+    def forward(self, x, bboxes, labels):
+        class_out, box_out = self.model(x)
+        cls_targets, box_targets, num_positives = self.anchor_labeler.batch_label_anchors(
+            x.shape[0], bboxes, labels)
+        loss, class_loss, box_loss = self.loss_fn(class_out, box_out, cls_targets, box_targets, num_positives)
+        output = dict(loss=loss, class_loss=class_loss, box_loss=box_loss)
+        return output
 
 def unwrap_bench(model):
     # Unwrap a model in support bench so that various other fns can access the weights and attribs of the
